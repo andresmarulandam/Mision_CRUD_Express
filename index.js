@@ -1,49 +1,58 @@
-/*const http= require ("http");
-const hostname= "127.0.0.1";
-const PORT=3001;
-
-const app = http.createServer((req,res)=>{
-  res.statusCode=200;
-  res.setHeader("Content-Type", "text/plain");
-  res.end("Hello World");
-});
-
-app.listen(PORT, hostname,() =>{
-  console.log( `Server running at http://${hostname}:${PORT}/`);
-} );
-*/
 const express = require("express");
-const app = express();
 const { v4: uuidv4 } = require("uuid");
+const cors = require("cors");
 
-let notes = [
-  {
-    title: "Título de la nota",
-    content: "Contenido de la nota",
-  },
-];
+const app = express();
+const port = 3001;
 
-app.get("/", (req, res) => {
-  res.send("<h1>Hello World!</h1>");
+const notes = [];
+
+/**
+ * C(reate), R(ead), U(pdate) and D(elete)
+ * GET, POST, PUT, DELETE
+ *
+ * ENDPOINTS
+ *
+ * POST    /songs      CREATE
+ * GET     /songs      READ (ALL)
+ * GET     /songs/:id  READ (ONE)
+ * PUT     /songs/:id  UPDATE
+ * DELETE  /songs/:id  DELETE
+ */
+
+app.use(cors());
+
+app.use(express.json());
+
+// CREATE
+app.post("/notes", (req, res, next) => {
+  // body
+  const { body = {} } = req;
+
+  const note = {
+    ...body,
+    id: uuidv4(),
+    // title: body.title,
+    // author: body.author,
+  };
+
+  notes.push(note);
+
+  res.status(201);
+  res.json(note);
 });
 
-//1. Get all
-app.get("/api/notes", (req, res) => {
+// READ ALL
+app.get("/notes", (req, res, next) => {
   res.json(notes);
 });
 
-// (POST)
-app.post("/notes", (req, res) => {
-  const { body } = req;
-  const note = { id: uuidv4(), ...body };
-  notes.push(body);
-  res.status(201).json(body);
-});
-
-//2. Get one (by id)
+// READ ONE
 app.get("/notes/:id", (req, res, next) => {
+  // params
   const { params = {} } = req;
   const { id = "" } = params;
+
   const note = notes.find(function (element) {
     return id === element.id;
   });
@@ -53,43 +62,57 @@ app.get("/notes/:id", (req, res, next) => {
   } else {
     next({
       statusCode: 404,
-      message: `Note with ${id}, Not Found`,
+      message: `Song with ${id}, Not Found`,
     });
   }
 });
 
-//3. Post (Se envía el body)
-app.post("/notes", (req, res) => {
-  const { body } = req;
-  notes.push(body);
-  res.status(201).json(body);
+// UPDATE
+app.put("/notes/:id", (req, res, next) => {
+  // params
+  const { params = {}, body = {} } = req;
+  const { id = "" } = params;
+
+  const index = notes.findIndex(function (element) {
+    return id === element.id;
+  });
+
+  if (index !== -1) {
+    const note = {
+      ...notes[index],
+      ...body,
+    };
+
+    notes[index] = note;
+
+    res.json(note);
+  } else {
+    next({
+      statusCode: 404,
+      message: `Song with ${id}, Not Found`,
+    });
+  }
 });
 
-//4. Put (Se envía el body)
-app.put("/notes/:id", (req, res) => {
-  const { id } = req.params;
-  const { name } = req.body;
-  const note = notes.find((note) => note.id === id);
+// DELETE
+app.delete("/notes/:id", (req, res, next) => {
+  const { params = {} } = req;
+  const { id = "" } = params;
 
-  if (!note) {
-    return res.status(404).json({ message: "Note not found" });
+  const index = notes.findIndex(function (element) {
+    return id === element.id;
+  });
+
+  if (index !== -1) {
+    notes.splice(index, 1);
+    res.status(204);
+    res.end();
+  } else {
+    next({
+      statusCode: 404,
+      message: `Song with ${id}, Not Found`,
+    });
   }
-
-  note.name = name;
-  res.json(note);
-});
-
-//5. Delete
-app.delete("/notes/:id", (req, res) => {
-  const { id } = req.params;
-  const index = notes.findIndex((note) => note.id === id);
-
-  if (index === -1) {
-    return res.status(404).json({ message: "Note not found" });
-  }
-
-  notes.splice(index, 1);
-  res.sendStatus(204);
 });
 
 app.use((req, res, next) => {
@@ -101,14 +124,15 @@ app.use((req, res, next) => {
 
 app.use((err, req, res, next) => {
   const { statusCode = 500, message = "Error" } = err;
+
   console.log(message);
+
   res.status(statusCode);
   res.json({
     message,
   });
 });
 
-const PORT = 3001;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+app.listen(port, () => {
+  console.log(`Example app listening on port ${port}`);
 });
